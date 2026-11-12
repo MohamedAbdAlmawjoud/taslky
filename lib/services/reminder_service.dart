@@ -13,8 +13,20 @@ class ReminderService {
   final FlutterLocalNotificationsPlugin _plugin;
   bool _initialized = false;
 
+  // flutter_local_notifications has native Android and iOS implementations,
+  // but no web implementation. Keep reminders optional on other platforms so
+  // they cannot prevent the app from starting there.
+  bool get _isSupportedPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
   Future<void> initialize() async {
     if (_initialized) return;
+    if (!_isSupportedPlatform) {
+      _initialized = true;
+      return;
+    }
     tz_data.initializeTimeZones();
     final zone = await FlutterTimezone.getLocalTimezone();
     tz.setLocalLocation(tz.getLocation(zone.identifier));
@@ -35,6 +47,7 @@ class ReminderService {
   }
 
   Future<bool> requestPermission() async {
+    if (!_isSupportedPlatform) return false;
     await initialize();
     if (defaultTargetPlatform == TargetPlatform.android) {
       return await _plugin
@@ -56,6 +69,7 @@ class ReminderService {
   }
 
   Future<void> schedule(TaskModel task) async {
+    if (!_isSupportedPlatform) return;
     await initialize();
     final id = _notificationId(task.id);
     await _plugin.cancel(id: id);
@@ -87,6 +101,7 @@ class ReminderService {
   }
 
   Future<void> syncTasks(List<TaskModel> tasks) async {
+    if (!_isSupportedPlatform) return;
     await initialize();
     await _plugin.cancelAll();
     final eligible =
@@ -105,6 +120,7 @@ class ReminderService {
   }
 
   Future<void> cancelAll() async {
+    if (!_isSupportedPlatform) return;
     await initialize();
     await _plugin.cancelAll();
   }
